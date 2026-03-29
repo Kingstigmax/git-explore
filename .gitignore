@@ -1,0 +1,293 @@
+# =============================================================================
+# Rust
+# =============================================================================
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# =============================================================================
+# Credentials & Secrets
+# =============================================================================
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+*.der
+*.p8
+id_rsa
+id_ed25519
+id_ecdsa
+id_dsa
+*.ppk
+.netrc
+.npmrc
+.pypirc
+auth.json
+credentials
+credentials.json
+secrets.json
+secrets.yaml
+secrets.yml
+secret.json
+secret.yaml
+secret.yml
+config.secret.*
+*.secret
+*.secrets
+service-account*.json
+gcloud-service-key.json
+google-credentials.json
+firebase-adminsdk*.json
+aws-credentials
+.aws/
+.gcloud/
+
+# =============================================================================
+# API Keys / Tokens (common file names)
+# =============================================================================
+token
+token.txt
+*.token
+api_key
+api_key.txt
+*.apikey
+github_token
+gh_token
+openai_key
+anthropic_key
+
+# =============================================================================
+# macOS
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+.AppleDB
+.AppleDesktop
+Icon
+ehthumbs.db
+Thumbs.db
+.fseventsd
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.DocumentRevisions-V100
+.TemporaryItems
+Network Trash Folder
+Temporary Items
+
+# =============================================================================
+# Linux
+# =============================================================================
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# Windows
+# =============================================================================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# =============================================================================
+# Editors & IDEs
+# =============================================================================
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+
+# JetBrains (CLion, IntelliJ, RustRover, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.idea_modules/
+
+# Vim / Neovim
+*.swp
+*.swo
+*.swn
+*.un~
+Session.vim
+.netrwhist
+tags
+
+# Emacs
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Sublime Text
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+*.sublime-project
+
+# TextMate
+*.tmproj
+*.tmproject
+tmtags
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# =============================================================================
+# Build artifacts & binaries
+# =============================================================================
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+dist/
+build/
+bin/
+obj/
+
+# =============================================================================
+# Logs & diagnostics
+# =============================================================================
+*.log
+*.logs
+logs/
+log/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+crash.log
+crash.txt
+panic.log
+
+# =============================================================================
+# Test & coverage artifacts
+# =============================================================================
+coverage/
+*.lcov
+*.profraw
+*.profdata
+tarpaulin-report.html
+lcov.info
+cobertura.xml
+
+# =============================================================================
+# Temporary & scratch files
+# =============================================================================
+tmp/
+temp/
+.tmp/
+.temp/
+scratch/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+*.rej
+*.patch
+
+# =============================================================================
+# Package manager artifacts
+# =============================================================================
+node_modules/
+vendor/
+.bundle/
+__pycache__/
+*.pyc
+*.pyo
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.nox/
+
+# =============================================================================
+# Claude Code / AI tools
+# =============================================================================
+.claude/
+CLAUDE.md
+
+# =============================================================================
+# CI/CD & deployment
+# =============================================================================
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+.vagrant/
+Vagrantfile.local
+*.tfvars
+!terraform.tfvars.example
+kubeconfig
+kube_config
+.kube/
+
+# =============================================================================
+# Archives (avoid accidentally committing large archives)
+# =============================================================================
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.tar.bz2
+*.tar.xz
+*.7z
+*.rar
+*.gz
+*.bz2
+*.xz
+
+# =============================================================================
+# Databases & data files
+# =============================================================================
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+*.dump
+*.rdb
+
+# =============================================================================
+# Local config overrides (keep examples, ignore actuals)
+# =============================================================================
+*.local
+!*.local.example
+config.local.*
+settings.local.*
