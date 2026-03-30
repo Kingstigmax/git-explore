@@ -2,6 +2,7 @@ pub mod blame;
 pub mod diff_panel;
 pub mod filetree;
 pub mod help;
+pub mod highlight;
 pub mod search;
 pub mod timeline;
 

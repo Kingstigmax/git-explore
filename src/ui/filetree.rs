@@ -1,10 +1,11 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    text::{Line, Span},
+    text::{Line, Span, Text},
     widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph, Wrap},
     Frame,
 };
+use crate::ui::highlight::highlight_file;
 use std::collections::HashSet;
 
 use crate::git::tree::{EntryKind, TreeEntry};
@@ -15,6 +16,7 @@ pub struct FileTreeState {
     pub expanded: HashSet<String>,
     pub current_path: String,
     pub file_preview: Option<String>,
+    pub highlighted_preview: Option<Vec<Line<'static>>>,
     pub preview_scroll: u16,
     pub show_preview: bool,
 }
@@ -28,9 +30,15 @@ impl FileTreeState {
             expanded: HashSet::new(),
             current_path: String::new(),
             file_preview: None,
+            highlighted_preview: None,
             preview_scroll: 0,
             show_preview: false,
         }
+    }
+
+    /// Compute and store syntax-highlighted lines for the given file content.
+    pub fn set_preview_highlights(&mut self, file_path: &str, content: &str) {
+        self.highlighted_preview = Some(highlight_file(file_path, content));
     }
 
     pub fn selected(&self) -> Option<usize> {
@@ -221,11 +229,6 @@ fn format_size(bytes: u64) -> String {
 }
 
 fn render_file_preview(f: &mut Frame, area: Rect, state: &FileTreeState) {
-    let content = state
-        .file_preview
-        .as_deref()
-        .unwrap_or("(no preview)");
-
     let block = Block::default()
         .title(" Preview ")
         .borders(Borders::ALL)
@@ -233,9 +236,15 @@ fn render_file_preview(f: &mut Frame, area: Rect, state: &FileTreeState) {
         .border_style(Style::default().fg(Theme::BORDER))
         .style(Style::default().bg(Theme::BG));
 
-    let para = Paragraph::new(content.to_string())
+    let text: Text<'static> = if let Some(lines) = &state.highlighted_preview {
+        Text::from(lines.clone())
+    } else {
+        let content = state.file_preview.as_deref().unwrap_or("(no preview)");
+        Text::raw(content.to_string())
+    };
+
+    let para = Paragraph::new(text)
         .block(block)
-        .style(Style::default().fg(Theme::TEXT))
         .wrap(Wrap { trim: false })
         .scroll((state.preview_scroll, 0));
 

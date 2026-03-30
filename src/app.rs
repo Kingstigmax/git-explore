@@ -170,20 +170,24 @@ impl App {
             return;
         }
         let cache_key = format!("{}@{}", file_path, commit_oid.unwrap_or("HEAD"));
-        if let Some(cached) = self.cache.blames.get(&cache_key) {
-            self.blame_data = Some(cached.clone());
-            return;
-        }
-        match compute_blame_at(&self.repo.repo, &file_path, commit_oid) {
-            Ok(result) => {
-                self.cache.blames.put(cache_key, result.clone());
-                self.blame_data = Some(result);
+
+        let result = if let Some(cached) = self.cache.blames.get(&cache_key) {
+            cached.clone()
+        } else {
+            match compute_blame_at(&self.repo.repo, &file_path, commit_oid) {
+                Ok(result) => {
+                    self.cache.blames.put(cache_key, result.clone());
+                    result
+                }
+                Err(e) => {
+                    eprintln!("Blame error: {}", e);
+                    return;
+                }
             }
-            Err(e) => {
-                // Store an empty result with the error message
-                eprintln!("Blame error: {}", e);
-            }
-        }
+        };
+
+        self.blame.set_highlights(&result.lines);
+        self.blame_data = Some(result);
     }
 
     fn load_diff_for_selected(&mut self) {
@@ -312,12 +316,14 @@ impl App {
         let oid = self.commits[idx].oid.clone();
         match file_content_at(&self.repo.repo, &oid, path) {
             Ok(content) => {
+                self.file_tree.set_preview_highlights(path, &content);
                 self.file_tree.file_preview = Some(content);
                 self.file_tree.show_preview = true;
                 self.file_tree.preview_scroll = 0;
             }
             Err(e) => {
                 self.file_tree.file_preview = Some(format!("Error: {}", e));
+                self.file_tree.highlighted_preview = None;
                 self.file_tree.show_preview = true;
             }
         }
@@ -514,6 +520,16 @@ impl App {
                         let hash = self.commits[idx].oid.clone();
                         self.yank_to_clipboard(&hash);
                     }
+                }
+            }
+            KeyCode::Char('[') => {
+                if self.timeline.show_diff {
+                    self.diff_panel.scroll_up();
+                }
+            }
+            KeyCode::Char(']') => {
+                if self.timeline.show_diff {
+                    self.diff_panel.scroll_down();
                 }
             }
             KeyCode::Char('o') => {
@@ -861,37 +877,13 @@ impl App {
                     .cloned()
                     .collect();
 
-                // Diff text (flat text from panel state)
-                let diff_text: Option<String> = if self.timeline.show_diff {
-                    Some(
-                        self.diff_panel
-                            .flat_lines
-                            .iter()
-                            .map(|fl| {
-                                use crate::ui::diff_panel::FlatLine;
-                                match fl {
-                                    FlatLine::FileHeader(s) => format!("─── {} ───", s),
-                                    FlatLine::HunkHeader(s) => s.clone(),
-                                    FlatLine::Added(s) => format!("+{}", s),
-                                    FlatLine::Removed(s) => format!("-{}", s),
-                                    FlatLine::Context(s) => format!(" {}", s),
-                                    FlatLine::Stats(s) => s.clone(),
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n"),
-                    )
+                let diff_panel = if self.timeline.show_diff {
+                    Some(&mut self.diff_panel)
                 } else {
                     None
                 };
 
-                render_timeline(
-                    f,
-                    area,
-                    &filtered,
-                    &mut self.timeline,
-                    diff_text.as_deref(),
-                );
+                render_timeline(f, area, &filtered, &mut self.timeline, diff_panel);
             }
             ViewId::FileTree => {
                 let flat = build_flat_list(
@@ -918,7 +910,7 @@ impl App {
     fn render_bottom_bar(&self, f: &mut ratatui::Frame, area: Rect) {
         let hints = match self.active_view {
             ViewId::Timeline => {
-                " j/k: nav  Enter: diff  d: diff  D: range diff  /: search  a: author  y: yank  ?: help  q: quit"
+                " j/k: nav  Enter: diff  d: diff  D: range diff  [/]: scroll diff  /: search  a: author  y: yank  ?: help  q: quit"
             }
             ViewId::FileTree => {
                 " j/k: nav  Enter: expand/preview  b: blame  h: history  o: editor  y: yank  ?: help  q: quit"

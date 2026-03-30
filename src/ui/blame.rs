@@ -5,6 +5,7 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, List, ListItem, ListState},
     Frame,
 };
+use crate::ui::highlight::highlight_file;
 
 use crate::git::BlameResult;
 use crate::ui::{relative_time, Theme};
@@ -12,13 +13,24 @@ use crate::ui::{relative_time, Theme};
 pub struct BlameViewState {
     pub list_state: ListState,
     pub file_path: String,
+    pub highlighted_code: Vec<Line<'static>>,
 }
 
 impl BlameViewState {
     pub fn new(file_path: String) -> Self {
         let mut list_state = ListState::default();
         list_state.select(Some(0));
-        Self { list_state, file_path }
+        Self { list_state, file_path, highlighted_code: Vec::new() }
+    }
+
+    /// Compute and store syntax-highlighted lines from blame data.
+    pub fn set_highlights(&mut self, lines: &[crate::git::blame::BlameLine]) {
+        let content = lines
+            .iter()
+            .map(|l| l.content.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        self.highlighted_code = highlight_file(&self.file_path, &content);
     }
 
     pub fn selected(&self) -> Option<usize> {
@@ -106,9 +118,8 @@ fn render_blame_content(
             let hash_str = format!("{:8} ", bl.short_hash);
             let author_str = format!("{:<12} ", truncate_str(&bl.author, 12));
             let date_str = format!("{:>8} ", relative_time(&bl.time));
-            let code_str = truncate_str(&bl.content, code_w);
 
-            ListItem::new(Line::from(vec![
+            let mut spans = vec![
                 Span::styled(lineno_str, Style::default().fg(Theme::DIM)),
                 Span::styled(
                     hash_str,
@@ -116,8 +127,18 @@ fn render_blame_content(
                 ),
                 Span::styled(author_str, Style::default().fg(author_color)),
                 Span::styled(date_str, Style::default().fg(Theme::DIM)),
-                Span::styled(code_str, Style::default().fg(Theme::TEXT)),
-            ]))
+            ];
+
+            if let Some(hl_line) = state.highlighted_code.get(bl.lineno - 1) {
+                spans.extend(hl_line.spans.clone());
+            } else {
+                spans.push(Span::styled(
+                    truncate_str(&bl.content, code_w),
+                    Style::default().fg(Theme::TEXT),
+                ));
+            }
+
+            ListItem::new(Line::from(spans))
         })
         .collect();
 

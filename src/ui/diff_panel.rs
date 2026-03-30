@@ -1,42 +1,30 @@
 use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState},
+    text::{Line, Span, Text},
+    widgets::{Block, BorderType, Borders, Paragraph},
     Frame,
 };
 
 use crate::git::diff::{DiffResult, FileDiff};
+use crate::ui::highlight::{highlight_line_spans, highlighter_for_path};
 use crate::ui::Theme;
 
 pub struct DiffPanelState {
-    pub list_state: ListState,
-    pub flat_lines: Vec<FlatLine>,
+    pub rendered: Text<'static>,
     pub scroll: u16,
-}
-
-#[derive(Clone)]
-pub enum FlatLine {
-    FileHeader(String),
-    HunkHeader(String),
-    Added(String),
-    Removed(String),
-    Context(String),
-    Stats(String),
 }
 
 impl DiffPanelState {
     pub fn new() -> Self {
         Self {
-            list_state: ListState::default(),
-            flat_lines: Vec::new(),
+            rendered: Text::default(),
             scroll: 0,
         }
     }
 
     pub fn load(&mut self, diff: &DiffResult) {
-        self.flat_lines = flatten_diff(diff);
-        self.list_state.select(Some(0));
+        self.rendered = build_diff_text(diff);
         self.scroll = 0;
     }
 
@@ -48,27 +36,61 @@ impl DiffPanelState {
         self.scroll = self
             .scroll
             .saturating_add(3)
-            .min(self.flat_lines.len().saturating_sub(1) as u16);
+            .min(self.rendered.lines.len().saturating_sub(1) as u16);
     }
 }
 
-fn flatten_diff(diff: &DiffResult) -> Vec<FlatLine> {
-    let mut lines = Vec::new();
-    lines.push(FlatLine::Stats(diff.stats_text.clone()));
+fn build_diff_text(diff: &DiffResult) -> Text<'static> {
+    let mut lines: Vec<Line<'static>> = Vec::new();
+
+    lines.push(Line::from(Span::styled(
+        diff.stats_text.clone(),
+        Style::default().fg(Theme::DIM),
+    )));
+
     for file in &diff.files {
-        lines.push(FlatLine::FileHeader(file_header(file)));
+        lines.push(Line::from(Span::styled(
+            file_header(file),
+            Style::default().fg(Theme::ACCENT).add_modifier(Modifier::BOLD),
+        )));
+
+        let file_path = file.new_path.as_deref().or(file.old_path.as_deref()).unwrap_or("");
+        let mut h = highlighter_for_path(file_path);
+
         for hunk in &file.hunks {
-            lines.push(FlatLine::HunkHeader(hunk.header.clone()));
-            for line in &hunk.lines {
-                match line.origin {
-                    '+' => lines.push(FlatLine::Added(line.content.clone())),
-                    '-' => lines.push(FlatLine::Removed(line.content.clone())),
-                    _ => lines.push(FlatLine::Context(line.content.clone())),
-                }
+            lines.push(Line::from(Span::styled(
+                hunk.header.clone(),
+                Style::default().fg(Theme::CYAN),
+            )));
+
+            for diff_line in &hunk.lines {
+                let syntax_spans = highlight_line_spans(&mut h, &diff_line.content);
+
+                let line = match diff_line.origin {
+                    '+' => {
+                        let mut spans =
+                            vec![Span::styled("+", Style::default().fg(Theme::GREEN))];
+                        spans.extend(syntax_spans);
+                        Line::from(spans)
+                    }
+                    '-' => {
+                        let mut spans =
+                            vec![Span::styled("-", Style::default().fg(Theme::RED))];
+                        spans.extend(syntax_spans);
+                        Line::from(spans)
+                    }
+                    _ => {
+                        let mut spans = vec![Span::raw(" ")];
+                        spans.extend(syntax_spans);
+                        Line::from(spans)
+                    }
+                };
+                lines.push(line);
             }
         }
     }
-    lines
+
+    Text::from(lines)
 }
 
 fn file_header(file: &FileDiff) -> String {
@@ -89,12 +111,7 @@ fn file_header(file: &FileDiff) -> String {
     }
 }
 
-pub fn render_diff_panel(
-    f: &mut Frame,
-    area: Rect,
-    state: &mut DiffPanelState,
-    title: &str,
-) {
+pub fn render_diff_panel(f: &mut Frame, area: Rect, state: &mut DiffPanelState, title: &str) {
     let block = Block::default()
         .title(format!(" {} ", title))
         .borders(Borders::ALL)
@@ -102,44 +119,9 @@ pub fn render_diff_panel(
         .border_style(Style::default().fg(Theme::BORDER))
         .style(Style::default().bg(Theme::BG));
 
-    let items: Vec<ListItem> = state
-        .flat_lines
-        .iter()
-        .skip(state.scroll as usize)
-        .map(|fl| flat_line_to_item(fl))
-        .collect();
+    let para = Paragraph::new(state.rendered.clone())
+        .block(block)
+        .scroll((state.scroll, 0));
 
-    let list = List::new(items).block(block);
-    f.render_stateful_widget(list, area, &mut state.list_state);
-}
-
-fn flat_line_to_item(fl: &FlatLine) -> ListItem<'static> {
-    match fl {
-        FlatLine::FileHeader(s) => ListItem::new(Line::from(Span::styled(
-            s.clone(),
-            Style::default()
-                .fg(Theme::ACCENT)
-                .add_modifier(Modifier::BOLD),
-        ))),
-        FlatLine::HunkHeader(s) => ListItem::new(Line::from(Span::styled(
-            s.clone(),
-            Style::default().fg(Theme::CYAN),
-        ))),
-        FlatLine::Added(s) => ListItem::new(Line::from(vec![
-            Span::styled("+", Style::default().fg(Theme::GREEN)),
-            Span::styled(s.clone(), Style::default().fg(Theme::GREEN)),
-        ])),
-        FlatLine::Removed(s) => ListItem::new(Line::from(vec![
-            Span::styled("-", Style::default().fg(Theme::RED)),
-            Span::styled(s.clone(), Style::default().fg(Theme::RED)),
-        ])),
-        FlatLine::Context(s) => ListItem::new(Line::from(Span::styled(
-            format!(" {}", s),
-            Style::default().fg(Theme::TEXT),
-        ))),
-        FlatLine::Stats(s) => ListItem::new(Line::from(Span::styled(
-            s.clone(),
-            Style::default().fg(Theme::DIM),
-        ))),
-    }
+    f.render_widget(para, area);
 }

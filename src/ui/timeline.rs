@@ -2,12 +2,12 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph, Wrap},
+    widgets::{Block, BorderType, Borders, List, ListItem, ListState},
     Frame,
 };
 
 use crate::git::CommitInfo;
-use crate::ui::{relative_time, truncate, Theme};
+use crate::ui::{diff_panel::{render_diff_panel, DiffPanelState}, relative_time, truncate, Theme};
 
 pub struct TimelineState {
     pub list_state: ListState,
@@ -64,18 +64,20 @@ pub fn render_timeline(
     area: Rect,
     commits: &[CommitInfo],
     state: &mut TimelineState,
-    diff_content: Option<&str>,
+    diff_panel: Option<&mut DiffPanelState>,
 ) {
-    if state.show_diff && diff_content.is_some() {
-        let chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-            .split(area);
-        render_commit_list(f, chunks[0], commits, state);
-        render_diff_panel(f, chunks[1], diff_content.unwrap_or(""));
-    } else {
-        render_commit_list(f, area, commits, state);
+    if state.show_diff {
+        if let Some(panel) = diff_panel {
+            let chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .split(area);
+            render_commit_list(f, chunks[0], commits, state);
+            render_diff_panel(f, chunks[1], panel, "Diff");
+            return;
+        }
     }
+    render_commit_list(f, area, commits, state);
 }
 
 fn render_commit_list(
@@ -179,18 +181,3 @@ fn build_commit_item(c: &CommitInfo, _selected: bool, width: u16) -> ListItem<'s
     ListItem::new(Line::from(spans))
 }
 
-fn render_diff_panel(f: &mut Frame, area: Rect, diff_text: &str) {
-    let block = Block::default()
-        .title(" Diff ")
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(Theme::BORDER))
-        .style(Style::default().bg(Theme::BG));
-
-    let para = Paragraph::new(diff_text.to_string())
-        .block(block)
-        .style(Style::default().fg(Theme::TEXT))
-        .wrap(Wrap { trim: false });
-
-    f.render_widget(para, area);
-}
